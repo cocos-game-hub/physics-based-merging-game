@@ -1,0 +1,13 @@
+{
+  "name": "feature-based-example",
+  "uuid": "f69f87ee-3768-4962-accf-f2d0b9fa80b5",
+  "creator": {
+    "version": "3.8.8"
+  },
+  "dependencies": {
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0"
+  }
+}

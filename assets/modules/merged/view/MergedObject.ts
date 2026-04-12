@@ -1,4 +1,13 @@
-import { _decorator, CircleCollider2D, Component, Contact2DType, IPhysics2DContact, Label, RigidBody2D } from 'cc';
+import {
+    _decorator,
+    CircleCollider2D,
+    Component,
+    Contact2DType,
+    IPhysics2DContact,
+    Label,
+    RigidBody2D,
+    Vec2
+} from 'cc';
 import { MergedData } from "../data/MergedData";
 import { eventBus } from "db://assets/core/event-bus/EventBus";
 import { GAME_EVENTS, MergeCollisionEvent } from "db://assets/core/event-bus/GameEvents";
@@ -15,6 +24,7 @@ export class MergedObject extends Component implements IMergedObject {
     private _collider: CircleCollider2D | null = null;
     private _rigidBody: RigidBody2D | null = null;
     private _isProcessing = false;
+    private _baseRadius: number = 0;
 
     private _data: MergedData | null = null;
 
@@ -27,11 +37,12 @@ export class MergedObject extends Component implements IMergedObject {
 
     start() {
         this._collider = this.getComponent(CircleCollider2D);
+        this._rigidBody = this.getComponent(RigidBody2D);
+
         if (this._collider) {
+            this._baseRadius = this._collider.radius;
             this._collider.on(Contact2DType.BEGIN_CONTACT, this.onBeginContact, this);
         }
-
-        this._rigidBody = this.getComponent(RigidBody2D);
     }
 
     onDestroy() {
@@ -46,6 +57,19 @@ export class MergedObject extends Component implements IMergedObject {
         if (this.label) {
             this.label.string = this.level.toString();
         }
+        const scale = data.level / 10;
+        this.node.setScale(1 + scale, 1 + scale);
+
+        if (this._rigidBody) {
+            this._rigidBody.linearVelocity = new Vec2(0, 0);
+        }
+
+        if (this._collider && this._baseRadius > 0) {
+            this._collider.radius = this._baseRadius + scale;
+
+            this._collider.enabled = false;
+            this._collider.enabled = true;
+        }
 
         eventBus.emit(GAME_EVENTS.MERGE.OBJECT_CREATED, this);
     }
@@ -59,20 +83,8 @@ export class MergedObject extends Component implements IMergedObject {
     }
 
     reset(): void {
-        this._isProcessing = false;
-
-        if (!this._collider) {
-            this._collider = this.getComponent(CircleCollider2D);
-            if (this._collider) {
-                this._collider.on(Contact2DType.BEGIN_CONTACT, this.onBeginContact, this);
-            }
-        } else {
-            this._collider.enabled = true;
-        }
-
-        if (this._rigidBody) {
-            this._rigidBody.enabled = true;
-        }
+        this.resetProcessing();
+        this._rigidBody.enabled = true;
     }
 
     private onBeginContact(self: CircleCollider2D, other: CircleCollider2D, contact: IPhysics2DContact) {

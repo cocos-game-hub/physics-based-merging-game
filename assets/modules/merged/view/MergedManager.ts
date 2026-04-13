@@ -127,8 +127,7 @@ export class MergedManager extends SingletonComponent<MergedManager> {
 
         const rigidBody = nodeA.getComponent(RigidBody2D);
         if (rigidBody) {
-            rigidBody.linearVelocity = new Vec2(0, 0);
-            rigidBody.applyLinearImpulseToCenter(new Vec2(randomInRange(-20, 20), randomInRange(0, 20)), true);
+            rigidBody.applyLinearImpulseToCenter(new Vec2(randomInRange(-50, 50), randomInRange(0, 50)), true);
         }
 
         this._objectMap.set(event.newData.uuid, objA);

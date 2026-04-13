@@ -8,15 +8,16 @@ import { MergedManager } from "db://assets/modules/merged/view/MergedManager";
 
 export class MergedLogic implements IMergedLogic {
     public canMerge(dataA: MergedData, dataB: MergedData): boolean {
-        return dataA.level === dataB.level;
+        return dataA.level === dataB.level && dataA.color === dataB.color;
     }
 
     public calculateMergeResult(dataA: MergedData, dataB: MergedData): MergedData {
         const newUuid = uuidv4();
         const newLevel = dataA.level + 1;
+        const color = dataA.color;
         const newPosition = this.calculateMergePosition(dataA.position, dataB.position);
 
-        return new MergedData(newUuid, newLevel, newPosition);
+        return new MergedData(newUuid, newLevel, color, newPosition);
     }
 
     public calculateMergePosition(

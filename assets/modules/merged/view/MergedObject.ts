@@ -6,6 +6,7 @@ import {
     IPhysics2DContact,
     Label,
     RigidBody2D,
+    Sprite,
     Vec2
 } from 'cc';
 import { MergedData } from "../data/MergedData";
@@ -18,6 +19,7 @@ const { ccclass, property } = _decorator;
 
 @ccclass('MergedObject')
 export class MergedObject extends Component implements IMergedObject {
+    @property(Sprite) declare fill: Sprite | null;
     @property(Label) declare label: Label | null;
     @property level: number = 1;
 
@@ -35,7 +37,7 @@ export class MergedObject extends Component implements IMergedObject {
         return this._data;
     }
 
-    start() {
+    onLoad() {
         this._collider = this.getComponent(CircleCollider2D);
         this._rigidBody = this.getComponent(RigidBody2D);
 
@@ -51,22 +53,31 @@ export class MergedObject extends Component implements IMergedObject {
         }
     }
 
+    enabledPhysics(isEnabled: boolean) {
+        this._rigidBody.enabled = isEnabled;
+    }
+
     setData(data: MergedData): void {
         this._data = data;
         this.level = data.level;
         if (this.label) {
             this.label.string = this.level.toString();
         }
+        if (this.fill) {
+            this.fill.color.fromHEX(data.color);
+            this.fill.enabled = false;
+            this.fill.enabled = true;
+        }
         const scale = data.level / 10;
         this.node.setScale(1 + scale, 1 + scale);
 
         if (this._rigidBody) {
+            this._rigidBody.angularVelocity = 0.01;
             this._rigidBody.linearVelocity = new Vec2(0, 0);
         }
 
         if (this._collider && this._baseRadius > 0) {
             this._collider.radius = this._baseRadius + scale;
-
             this._collider.enabled = false;
             this._collider.enabled = true;
         }

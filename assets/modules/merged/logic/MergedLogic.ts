@@ -17,7 +17,7 @@ export class MergedLogic implements IMergedLogic {
         const color = dataA.color;
         const newPosition = this.calculateMergePosition(dataA.position, dataB.position);
 
-        return new MergedData(newUuid, newLevel, color, newPosition);
+        return new MergedData(newUuid, false, false, newLevel, color, newPosition);
     }
 
     public calculateMergePosition(

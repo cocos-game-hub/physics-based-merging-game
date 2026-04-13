@@ -53,6 +53,25 @@ export class MergedObject extends Component implements IMergedObject {
         }
     }
 
+    public getData(): MergedData | null {
+        return this._data;
+    }
+
+    setIsCurrent() {
+        this.data.isCurrent = true;
+        this.data.isNext = false;
+    }
+
+    setIsNext() {
+        this.data.isCurrent = false;
+        this.data.isNext = true;
+    }
+
+    resetIsCurrentAndIsNext() {
+        this.data.isCurrent = false;
+        this.data.isNext = false;
+    }
+
     enabledPhysics(isEnabled: boolean) {
         this._rigidBody.enabled = isEnabled;
     }

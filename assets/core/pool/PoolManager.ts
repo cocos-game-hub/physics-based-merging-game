@@ -44,6 +44,38 @@ export class PoolManager {
         pool.despawn(node);
     }
 
+    despawnAll(key: string): void {
+        const pool = this._pools.get(key);
+        if (!pool) {
+            console.error(`[PoolManager] Pool "${ key }" not found`);
+            return;
+        }
+        pool.despawnAll();
+    }
+
+    despawnAllPools(): void {
+        this._pools.forEach(pool => pool.despawnAll());
+    }
+
+    getAllActiveNodes(key: string): Node[] {
+        const pool = this._pools.get(key);
+        if (!pool) {
+            console.error(`[PoolManager] Pool "${ key }" not found`);
+            return [];
+        }
+        return pool.getAllActiveNodes();
+    }
+
+// Важно: метод для получения ВСЕХ нод из пула (включая неактивные)
+    getAllNodesFromPool(key: string): Node[] {
+        const pool = this._pools.get(key);
+        if (!pool) {
+            console.error(`[PoolManager] Pool "${ key }" not found`);
+            return [];
+        }
+        return pool.getAllNodes();
+    }
+
     getPoolInfo(key?: string): any {
         if (key) {
             return this._pools.get(key)?.getInfo();

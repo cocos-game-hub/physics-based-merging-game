@@ -63,6 +63,29 @@ export class ObjectPool {
         };
     }
 
+    despawnAll(): void {
+        this._pool.forEach(node => {
+            if (node?.isValid) {
+                // Отключаем физику
+                const rigidBody = node.getComponent(RigidBody2D);
+                if (rigidBody) {
+                    rigidBody.enabled = false;
+                }
+
+                node.active = false;
+                node.setPosition(0, -10000, 0);
+            }
+        });
+    }
+
+    getAllActiveNodes(): Node[] {
+        return this._pool.filter(n => n?.isValid && n.active);
+    }
+
+    getAllNodes(): Node[] {
+        return this._pool.filter(n => n?.isValid);
+    }
+
     private createNew(): Node {
         if (!this._prefab) throw new Error(`Pool ${ this._name } not initialized`);
         if (!this._container) throw new Error(`Pool ${ this._name } has no container`);

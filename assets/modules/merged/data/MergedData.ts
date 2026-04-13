@@ -1,22 +1,29 @@
 export class MergedData {
     uuid: string;
+    isCurrent: boolean;
+    isNext: boolean;
     level: number;
     color: MergedColor;
     position: { x: number; y: number };
 
-    constructor(uuid: string, level: number, color: MergedColor, position: { x: number; y: number }) {
+    constructor(uuid: string, isCurrent: boolean, isNext: boolean, level: number, color: MergedColor, position: {
+        x: number;
+        y: number
+    }) {
         this.uuid = uuid;
+        this.isCurrent = isCurrent;
+        this.isNext = isNext;
         this.level = level;
         this.color = color;
         this.position = { x: position.x, y: position.y };
     }
 
-    static fromVec3(uuid: string, level: number, color: MergedColor, vec: {
+    static fromVec3(uuid: string, isCurrent: boolean, isNext: boolean, level: number, color: MergedColor, vec: {
         x: number;
         y: number;
         z?: number
     }): MergedData {
-        return new MergedData(uuid, level, color, { x: vec.x, y: vec.y });
+        return new MergedData(uuid, isCurrent, isNext, level, color, { x: vec.x, y: vec.y });
     }
 }
 

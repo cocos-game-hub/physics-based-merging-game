@@ -1,4 +1,4 @@
-import { _decorator, Component, PhysicsSystem2D, Prefab } from 'cc';
+import { _decorator, Button, Component, PhysicsSystem2D, Prefab, sys } from 'cc';
 import { container } from "db://assets/core/di/Container";
 import { SERVICE_KEYS } from "db://assets/core/di/types";
 import { MergedLogic } from "db://assets/modules/merged/logic/MergedLogic";
@@ -9,9 +9,11 @@ const { ccclass, property } = _decorator;
 
 @ccclass('GameBootstrap')
 export class GameBootstrap extends Component {
-    @property(Prefab) mergedPrefab: Prefab | null = null;
+    @property(Prefab) declare mergedPrefab: Prefab | null;
+    @property(Button) declare resetButton: Button | null;
 
     start() {
+        this.resetButton.node.on(Button.EventType.CLICK, this.resetProgress, this);
         PhysicsSystem2D.instance.debugDrawFlags = 0;
         logger.setDevMode(false);
         logger.setMinLevel('debug');
@@ -28,5 +30,9 @@ export class GameBootstrap extends Component {
         if (this.mergedPrefab) {
             poolManager.registerPool('merged', this.mergedPrefab, 0);
         }
+    }
+
+    resetProgress() {
+        sys.localStorage.removeItem('ObjectMap');
     }
 }

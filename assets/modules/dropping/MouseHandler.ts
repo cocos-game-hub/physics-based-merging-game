@@ -11,8 +11,8 @@ import { GAME_EVENTS } from "db://assets/core/event-bus/GameEvents";
 
 const { ccclass, property } = _decorator;
 
-@ccclass('MouseTracker')
-export class MouseTracker extends Component {
+@ccclass('MouseHandler')
+export class MouseHandler extends Component {
     @property(Sprite) declare handHandler: Sprite | null;
     @property(Canvas) declare canvas: Canvas | null;
     @property(Camera) declare gameCamera: Camera | null;
@@ -48,10 +48,10 @@ export class MouseTracker extends Component {
 
         // Восстанавливаем ВСЕ объекты из сохранения
         if (this._saved && this._saved.length > 0) {
-            logger.debug('[MouseTracker]', `Found ${ this._saved.length } saved objects`);
+            logger.debug('[MouseHandler]', `Found ${ this._saved.length } saved objects`);
             this.restoreAllObjectsFromSave();
         } else {
-            logger.debug('[MouseTracker]', 'No saved objects found, creating new ones');
+            logger.debug('[MouseHandler]', 'No saved objects found, creating new ones');
             this.createNewGameObjects();
         }
 
@@ -72,7 +72,7 @@ export class MouseTracker extends Component {
             if (this._currentCooldown <= 0) {
                 this._canDrop = true;
                 this._currentCooldown = 0;
-                logger.debug('[MouseTracker]', 'Cooldown finished, can drop again');
+                logger.debug('[MouseHandler]', 'Cooldown finished, can drop again');
             }
         }
     }
@@ -88,12 +88,12 @@ export class MouseTracker extends Component {
         .filter(data => data !== null);
 
         sys.localStorage.setItem('ObjectMap', JSON.stringify(dataToSave));
-        logger.debug('[MouseTracker]', `Saved ${ dataToSave.length } objects to localStorage`);
+        logger.debug('[MouseHandler]', `Saved ${ dataToSave.length } objects to localStorage`);
 
         // Выводим информацию о пуле для отладки
         const poolInfo = this._poolManager?.getPoolInfo('merged');
         if (poolInfo) {
-            logger.debug('[MouseTracker]', `Pool info: ${ poolInfo.active }/${ poolInfo.total } active objects`);
+            logger.debug('[MouseHandler]', `Pool info: ${ poolInfo.active }/${ poolInfo.total } active objects`);
         }
     }
 
@@ -109,7 +109,7 @@ export class MouseTracker extends Component {
     private startCooldown() {
         this._canDrop = false;
         this._currentCooldown = this._cooldownTime;
-        logger.debug('[MouseTracker]', `Cooldown started: ${ this._cooldownTime }s`);
+        logger.debug('[MouseHandler]', `Cooldown started: ${ this._cooldownTime }s`);
     }
 
     private onTouchEnd(event: EventTouch) {
@@ -120,7 +120,7 @@ export class MouseTracker extends Component {
         if (this._canDrop) {
             this.drop();
         } else {
-            logger.debug('[MouseTracker]', `Cannot drop yet. Cooldown remaining: ${ this._currentCooldown.toFixed(1) }s`);
+            logger.debug('[MouseHandler]', `Cannot drop yet. Cooldown remaining: ${ this._currentCooldown.toFixed(1) }s`);
         }
     }
 
@@ -180,7 +180,7 @@ export class MouseTracker extends Component {
         const node = this._poolManager.spawn('merged', new Vec3(handPos.x, handPos.y, 0));
 
         if (!node) {
-            logger.error('[MouseTracker]', 'Failed to spawn merged object');
+            logger.error('[MouseHandler]', 'Failed to spawn merged object');
             return;
         }
 
@@ -209,7 +209,7 @@ export class MouseTracker extends Component {
         // Деспавним все объекты через пул
         this._poolManager?.despawnAll('merged');
 
-        logger.debug('[MouseTracker]', 'Cleared all merged objects from scene');
+        logger.debug('[MouseHandler]', 'Cleared all merged objects from scene');
     }
 
     private createNewGameObjects() {
@@ -230,7 +230,7 @@ export class MouseTracker extends Component {
         const nextObjects = this._saved.filter(data => data.isNext);
         const otherObjects = this._saved.filter(data => !data.isCurrent && !data.isNext);
 
-        logger.debug('[MouseTracker]', `Restoring: current=${ currentObjects.length }, next=${ nextObjects.length }, others=${ otherObjects.length }`);
+        logger.debug('[MouseHandler]', `Restoring: current=${ currentObjects.length }, next=${ nextObjects.length }, others=${ otherObjects.length }`);
 
         // Восстанавливаем текущий объект
         if (currentObjects.length > 0) {
@@ -243,10 +243,10 @@ export class MouseTracker extends Component {
                 // Устанавливаем позицию handHandler
                 this.handHandler.node.setPosition(currentData.position.x, currentData.position.y, 0);
 
-                logger.debug('[MouseTracker]', `Restored current object: color=${ currentData.color }, pos=(${ currentData.position.x }, ${ currentData.position.y })`);
+                logger.debug('[MouseHandler]', `Restored current object: color=${ currentData.color }, pos=(${ currentData.position.x }, ${ currentData.position.y })`);
             }
         } else {
-            logger.warn('[MouseTracker]', 'No current object found in save');
+            logger.warn('[MouseHandler]', 'No current object found in save');
             this._currentMergedObject = this.spawnMergedObject(true, false);
         }
 
@@ -259,10 +259,10 @@ export class MouseTracker extends Component {
                 this._nextMergedObject.enabledPhysics(false);
                 this._nextMergedObject.node.setPosition(265, 570, 0);
 
-                logger.debug('[MouseTracker]', `Restored next object: color=${ nextData.color }, level=${ nextData.level }`);
+                logger.debug('[MouseHandler]', `Restored next object: color=${ nextData.color }, level=${ nextData.level }`);
             }
         } else {
-            logger.warn('[MouseTracker]', 'No next object found in save');
+            logger.warn('[MouseHandler]', 'No next object found in save');
             this._nextMergedObject = this.spawnMergedObject(false, true);
             if (this._nextMergedObject) {
                 this._nextMergedObject.node.setPosition(265, 570, 0);
@@ -276,11 +276,11 @@ export class MouseTracker extends Component {
                 obj.enabledPhysics(true);
                 obj.resetIsCurrentAndIsNext();
 
-                logger.debug('[MouseTracker]', `Restored object #${ index }: color=${ data.color }, pos=(${ data.position.x.toFixed(0) }, ${ data.position.y.toFixed(0) })`);
+                logger.debug('[MouseHandler]', `Restored object #${ index }: color=${ data.color }, pos=(${ data.position.x.toFixed(0) }, ${ data.position.y.toFixed(0) })`);
             }
         });
 
-        logger.debug('[MouseTracker]', `Restoration complete. Total objects on scene: ${ this.getActiveObjectsCount() }`);
+        logger.debug('[MouseHandler]', `Restoration complete. Total objects on scene: ${ this.getActiveObjectsCount() }`);
     }
 
     private createObjectFromData(data: MergedData): MergedObject | null {
@@ -289,7 +289,7 @@ export class MouseTracker extends Component {
         const node = this._poolManager?.spawn('merged', position);
 
         if (!node) {
-            logger.error('[MouseTracker]', `Failed to spawn object at (${ data.position.x }, ${ data.position.y })`);
+            logger.error('[MouseHandler]', `Failed to spawn object at (${ data.position.x }, ${ data.position.y })`);
             return null;
         }
 
@@ -300,7 +300,7 @@ export class MouseTracker extends Component {
 
             return mergedObj;
         } else {
-            logger.error('[MouseTracker]', 'MergedObject component not found on spawned node');
+            logger.error('[MouseHandler]', 'MergedObject component not found on spawned node');
             this._poolManager?.despawn('merged', node);
             return null;
         }

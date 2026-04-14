@@ -5,6 +5,7 @@ import {
     Contact2DType,
     IPhysics2DContact,
     Label,
+    ParticleSystem2D,
     RigidBody2D,
     Sprite,
     Vec2
@@ -21,6 +22,7 @@ const { ccclass, property } = _decorator;
 export class MergedObject extends Component implements IMergedObject {
     @property(Sprite) declare fill: Sprite | null;
     @property(Label) declare label: Label | null;
+    @property(ParticleSystem2D) declare particleSystem: ParticleSystem2D | null;
     @property level: number = 1;
 
     private _collider: CircleCollider2D | null = null;

@@ -6,8 +6,6 @@ import { MergedColor, MergedData } from "db://assets/modules/merged/data/MergedD
 import { clamp, convertTouchToWorldPos, convertWorldToCanvasPos, getRandomEnumKey } from "db://assets/core/utils";
 import { SERVICE_KEYS } from "db://assets/core/di/types";
 import { container } from "db://assets/core/di/Container";
-import { eventBus } from "db://assets/core/event-bus/EventBus";
-import { GAME_EVENTS } from "db://assets/core/event-bus/GameEvents";
 
 const { ccclass, property } = _decorator;
 
@@ -31,7 +29,6 @@ export class MouseHandler extends Component {
         input.on(Input.EventType.TOUCH_START, this.onTouchStart, this);
         input.on(Input.EventType.TOUCH_END, this.onTouchEnd, this);
         input.on(Input.EventType.TOUCH_MOVE, this.onTouchMove, this);
-        eventBus.on(GAME_EVENTS.MERGE.COLLISION, this.onMergeCollision, this);
     }
 
     start() {
@@ -102,10 +99,6 @@ export class MouseHandler extends Component {
         this._poolManager?.logAllPools();
     }
 
-    private onMergeCollision() {
-        this.saveAllObjects();
-    }
-
     private startCooldown() {
         this._canDrop = false;
         this._currentCooldown = this._cooldownTime;
@@ -146,7 +139,7 @@ export class MouseHandler extends Component {
 
     // ============= МЕТОДЫ ДЛЯ СОХРАНЕНИЯ/ВОССТАНОВЛЕНИЯ =============
 
-    private drop() {
+    private async drop() {
         if (this._currentMergedObject) {
             this._currentMergedObject.enabledPhysics(true);
             this._currentMergedObject.resetIsCurrentAndIsNext();

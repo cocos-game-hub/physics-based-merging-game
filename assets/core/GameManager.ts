@@ -4,15 +4,20 @@ import { SERVICE_KEYS } from "db://assets/core/di/types";
 import { MergedLogic } from "db://assets/modules/merged/logic/MergedLogic";
 import logger from 'db://assets/core/utils/console';
 import { PoolManager } from "db://assets/core/pool/PoolManager";
+import { yandexSdk } from "db://assets/core/api/yandex-game";
+import { DEV } from 'cc/env';
 
 const { ccclass, property } = _decorator;
 
-@ccclass('GameBootstrap')
-export class GameBootstrap extends Component {
+@ccclass('GameManager')
+export class GameManager extends Component {
     @property(Prefab) declare mergedPrefab: Prefab | null;
     @property(Button) declare resetButton: Button | null;
 
     start() {
+        if (!DEV) {
+            yandexSdk.gameEvents.gameReady();
+        }
         this.resetButton.node.on(Button.EventType.CLICK, this.resetProgress, this);
         PhysicsSystem2D.instance.debugDrawFlags = 0;
         logger.setDevMode(false);

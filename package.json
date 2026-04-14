@@ -5,6 +5,7 @@
     "version": "3.8.8"
   },
   "dependencies": {
+    "@types/ysdk": "^1.2.0",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

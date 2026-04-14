@@ -1,20 +1,22 @@
-/**
- * Данные игрока
- * https://yandex.ru/dev/games/doc/ru/sdk/sdk-player
- */
 import Module from "db://assets/core/api/yandex-game/core/module";
+import { MergedData } from "db://assets/modules/merged/data/MergedData";
 import type { Player as P } from 'ysdk';
 
-const saveDefinitions = {
-    ObjectMap: 'ObjectMap',
+const savedDataDefinitions = {
+    MergedData: 'MergedData',
     Score: 'Score',
 } as const;
 
-type SaveDefinitions = typeof saveDefinitions;
-type SaveKey = keyof SaveDefinitions;
+type SavedDataDefinitions = typeof savedDataDefinitions;
+export type SavedDataKey = keyof SavedDataDefinitions;
 
-export type Save<T> = {
-    [K in SaveKey]: Array<T>;
+export interface SavedDataTypes {
+    MergedData: MergedData;
+    Score: { score: number; maxScore: number };
+}
+
+export type SavedData = {
+    [K in SavedDataKey]: SavedDataTypes[K];
 }
 
 class Player extends Module {
@@ -27,21 +29,26 @@ class Player extends Module {
         }, 'initPlayer');
     }
 
-    async setData<K extends SaveKey>(data: Partial<Record<K, any>>, flush: boolean = false): Promise<void> {
+    async setData(
+        data: Partial<SavedData>,
+        flush: boolean = false
+    ): Promise<void> {
         return this.safeAsyncCall(async () => {
             if (!this.player) {
                 throw new Error('Player not initialized. Call init() first.');
             }
-            await this.player.setData(data, flush);
+            await this.player.setData(data as Record<string, any>, flush);
         }, 'setData');
     }
 
-    async getData<K extends SaveKey>(keys?: Array<K>): Promise<any> {
+    async getData(): Promise<Partial<SavedData>>;
+    async getData<K extends SavedDataKey>(keys: Array<K>): Promise<Pick<SavedData, K>>;
+    async getData<K extends SavedDataKey>(keys?: Array<K>): Promise<any> {
         return this.safeAsyncCall(async () => {
             if (!this.player) {
                 throw new Error('Player not initialized. Call init() first.');
             }
-            return await this.player.getData(keys);
+            return await this.player.getData(keys as string[]);
         }, 'getData');
     }
 

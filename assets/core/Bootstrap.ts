@@ -3,8 +3,7 @@ import { DEV } from 'cc/env';
 import logger from 'db://assets/core/utils/console';
 import { SingletonComponent } from "db://assets/core/utils/SingletonComponent";
 import { yandexSdk } from "db://assets/core/api/yandex-game";
-import { Save } from "db://assets/core/api/yandex-game/feature/player/player";
-import { MergedData } from "db://assets/modules/merged/data/MergedData";
+import { SavedData } from "db://assets/core/api/yandex-game/feature/player/player";
 
 const { ccclass, property } = _decorator;
 
@@ -23,13 +22,13 @@ export class Bootstrap extends SingletonComponent<Bootstrap> {
         await yandexSdk.player.init();
         await yandexSdk.player.setData({
             Score: { score: 1000, maxScore: 2000 },
-            ObjectMap: sys.localStorage.getItem('ObjectMap')
+            MergedData: sys.localStorage.getItem('ObjectMap')
         });
 
-        const playerData = await yandexSdk.player.getData(['ObjectMap', 'Score']) as Save<MergedData>;
+        const playerData = await yandexSdk.player.getData() as SavedData;
         const localStorageData = sys.localStorage.getItem('ObjectMap');
-        logger.warn('YG DATA', playerData['ObjectMap']);
-        logger.warn('YG DATA', playerData['Score']);
+        logger.warn('YG DATA', playerData.MergedData);
+        logger.warn('YG DATA', playerData.Score);
         logger.warn('LS DATA', localStorageData);
         director.loadScene('Game');
     }

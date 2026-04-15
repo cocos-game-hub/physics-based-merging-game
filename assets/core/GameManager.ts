@@ -1,4 +1,4 @@
-import { _decorator, Button, Component, PhysicsSystem2D, Prefab, sys } from 'cc';
+import { _decorator, Button, Component, PhysicsSystem2D, Prefab } from 'cc';
 import { container } from "db://assets/core/di/Container";
 import { SERVICE_KEYS } from "db://assets/core/di/types";
 import { MergedLogic } from "db://assets/modules/merged/logic/MergedLogic";
@@ -6,6 +6,7 @@ import logger from 'db://assets/core/utils/console';
 import { PoolManager } from "db://assets/core/pool/PoolManager";
 import { yandexSdk } from "db://assets/core/api/yandex-game";
 import { DEV } from 'cc/env';
+import { Bootstrap } from "db://assets/core/Bootstrap";
 
 const { ccclass, property } = _decorator;
 
@@ -38,6 +39,6 @@ export class GameManager extends Component {
     }
 
     resetProgress() {
-        sys.localStorage.removeItem('ObjectMap');
+        Bootstrap.getInstance().removeSavedData();
     }
 }

@@ -11,7 +11,7 @@ type SavedDataDefinitions = typeof savedDataDefinitions;
 export type SavedDataKey = keyof SavedDataDefinitions;
 
 export interface SavedDataTypes {
-    MergedData: MergedData;
+    MergedData: MergedData[];
     Score: { score: number; maxScore: number };
 }
 

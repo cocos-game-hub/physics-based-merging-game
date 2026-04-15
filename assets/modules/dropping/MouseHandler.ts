@@ -1,11 +1,21 @@
-import { _decorator, Camera, Canvas, Component, EventTouch, Input, input, Sprite, sys, Vec2, Vec3 } from 'cc';
+import { _decorator, Camera, Canvas, Component, EventTouch, Input, input, Sprite, Vec2, Vec3 } from 'cc';
 import logger from 'db://assets/core/utils/console';
 import { PoolManager } from "db://assets/core/pool/PoolManager";
 import { MergedObject } from "db://assets/modules/merged/view/MergedObject";
 import { MergedColor, MergedData } from "db://assets/modules/merged/data/MergedData";
-import { clamp, convertTouchToWorldPos, convertWorldToCanvasPos, getRandomEnumKey } from "db://assets/core/utils";
+import {
+    clamp,
+    convertTouchToWorldPos,
+    convertWorldToCanvasPos,
+    getRandomEnumKey,
+    randomInRange
+} from "db://assets/core/utils";
 import { SERVICE_KEYS } from "db://assets/core/di/types";
 import { container } from "db://assets/core/di/Container";
+import { Bootstrap } from "db://assets/core/Bootstrap";
+import { SavedData } from "db://assets/core/api/yandex-game/feature/player/player";
+import { eventBus } from "db://assets/core/event-bus/EventBus";
+import { GAME_EVENTS } from "db://assets/core/event-bus/GameEvents";
 
 const { ccclass, property } = _decorator;
 
@@ -29,10 +39,11 @@ export class MouseHandler extends Component {
         input.on(Input.EventType.TOUCH_START, this.onTouchStart, this);
         input.on(Input.EventType.TOUCH_END, this.onTouchEnd, this);
         input.on(Input.EventType.TOUCH_MOVE, this.onTouchMove, this);
+        eventBus.on(GAME_EVENTS.MERGE.OBJECT_CREATED, this.onObjectCreated, this);
     }
 
     start() {
-        this._saved = JSON.parse(sys.localStorage.getItem('ObjectMap')) as MergedData[];
+        this._saved = Bootstrap.getInstance().getSavedData().MergedData;
 
         this._poolManager = container.get<PoolManager>(SERVICE_KEYS.POOL_MANAGER);
 
@@ -84,7 +95,12 @@ export class MouseHandler extends Component {
         .map(obj => obj.getData())
         .filter(data => data !== null);
 
-        sys.localStorage.setItem('ObjectMap', JSON.stringify(dataToSave));
+        const savedData: SavedData = {
+            Score: { score: randomInRange(0, 100), maxScore: randomInRange(100, 1000) },
+            MergedData: dataToSave
+        };
+        Bootstrap.getInstance().setSavedData(savedData);
+
         logger.debug('[MouseHandler]', `Saved ${ dataToSave.length } objects to localStorage`);
 
         // Выводим информацию о пуле для отладки
@@ -97,6 +113,10 @@ export class MouseHandler extends Component {
     //TODO: Для отладки
     public logPoolState() {
         this._poolManager?.logAllPools();
+    }
+
+    private onObjectCreated() {
+        this.saveAllObjects();
     }
 
     private startCooldown() {
@@ -139,7 +159,7 @@ export class MouseHandler extends Component {
 
     // ============= МЕТОДЫ ДЛЯ СОХРАНЕНИЯ/ВОССТАНОВЛЕНИЯ =============
 
-    private async drop() {
+    private drop() {
         if (this._currentMergedObject) {
             this._currentMergedObject.enabledPhysics(true);
             this._currentMergedObject.resetIsCurrentAndIsNext();

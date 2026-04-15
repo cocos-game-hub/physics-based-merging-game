@@ -1,5 +1,7 @@
 import logger from "db://assets/core/utils/console";
-import { Camera, Canvas, EventTouch, UITransform, Vec2, Vec3 } from 'cc';
+import { _decorator, Camera, Canvas, Component, EventTouch, UITransform, Vec2, Vec3 } from 'cc';
+
+const { ccclass } = _decorator;
 
 
 export const randomInRange = (min: number, max: number): number => {
@@ -47,3 +49,73 @@ export const getRandomEnumKey = <T extends Record<string, string>>(enumObj: T): 
     const randomIndex = Math.floor(Math.random() * keys.length);
     return keys[randomIndex];
 };
+
+/**
+ * Генератор функции подавления дребезга (debounce) для Cocos Creator 3.8
+ * @param fn Исходная функция
+ * @param delay Задержка в секундах
+ * @param component Экземпляр компонента (обычно this)
+ */
+export function createCocosDebounce<T extends (...args: any[]) => any>(
+    fn: T,
+    delay: number,
+    component: Component
+): (...args: Parameters<T>) => void {
+    let scheduledCallback: (() => void) | null = null;
+
+    return (...args: Parameters<T>) => {
+        if (scheduledCallback) {
+            component.unschedule(scheduledCallback);
+            scheduledCallback = null;
+        }
+
+        scheduledCallback = () => {
+            fn(...args);
+            scheduledCallback = null;
+        };
+
+        component.scheduleOnce(scheduledCallback, delay);
+    };
+}
+
+export function createCocosThrottle<T extends (...args: any[]) => any>(
+    fn: T,
+    interval: number,
+    component: Component
+): (...args: Parameters<T>) => void {
+    let lastCallTime = 0;
+    let pendingArgs: Parameters<T> | null = null;
+    let scheduledCallback: (() => void) | null = null;
+
+    return (...args: Parameters<T>) => {
+        const now = Date.now() / 1000; // в секундах
+        pendingArgs = args;
+
+        // Если прошло достаточно времени — выполняем сразу
+        if (now - lastCallTime >= interval) {
+            lastCallTime = now;
+            fn(...args);
+            pendingArgs = null;
+
+            if (scheduledCallback) {
+                component.unschedule(scheduledCallback);
+                scheduledCallback = null;
+            }
+        }
+        // Иначе планируем на конец интервала (если ещё не запланировано)
+        else if (!scheduledCallback) {
+            const timeToWait = interval - (now - lastCallTime);
+
+            scheduledCallback = () => {
+                if (pendingArgs) {
+                    lastCallTime = Date.now() / 1000;
+                    fn(...pendingArgs);
+                    pendingArgs = null;
+                }
+                scheduledCallback = null;
+            };
+
+            component.scheduleOnce(scheduledCallback, timeToWait);
+        }
+    };
+}

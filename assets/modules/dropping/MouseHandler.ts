@@ -7,6 +7,8 @@ import {
     clamp,
     convertTouchToWorldPos,
     convertWorldToCanvasPos,
+    createCocosDebounce,
+    createCocosThrottle,
     getRandomEnumKey,
     randomInRange
 } from "db://assets/core/utils";
@@ -19,6 +21,36 @@ import { GAME_EVENTS } from "db://assets/core/event-bus/GameEvents";
 
 const { ccclass, property } = _decorator;
 
+// ============= КОНСТАНТЫ =============
+const HANDLER_POSITION = {
+    X_MIN: -320,
+    X_MAX: 320,
+    Y: 440,
+    Z: 0
+} as const;
+
+const NEXT_OBJECT_POSITION = {
+    X: 265,
+    Y: 570,
+    Z: 0
+} as const;
+
+const COOLDOWN = {
+    DURATION: 0.5,
+    DISPLAY_PRECISION: 1
+} as const;
+
+const POOL_KEYS = {
+    MERGED: 'merged'
+} as const;
+
+const DEFAULT_LEVEL = 1;
+const DEFAULT_SCALE = 1;
+const SCALE_ANIMATION_DURATION = 0.25;
+const SCALE_ANIMATION_DELAY = 0.25;
+const SAVE_DEBOUNCE_DELAY = 3.5;
+const SAVE_THROTTLE_INTERVAL = 3.5;
+
 @ccclass('MouseHandler')
 export class MouseHandler extends Component {
     @property(Sprite) declare handHandler: Sprite | null;
@@ -28,18 +60,41 @@ export class MouseHandler extends Component {
 
     // Cooldown timer
     private _canDrop = true;
-    private _cooldownTime: number = 0.5;
+    private _cooldownTime: number = COOLDOWN.DURATION;
     private _currentCooldown: number = 0;
     private _poolManager: PoolManager | null;
-    private _currentMergedObject: MergedObject | null;
-    private _nextMergedObject: MergedObject | null;
+
+    // Храним данные вместо ссылок на объекты
+    private _currentObjectData: MergedData | null = null;
+    private _nextObjectData: MergedData | null = null;
+
+    // Кэш для быстрого доступа к активным объектам (опционально)
+    private _currentObjectInstance: MergedObject | null = null;
+    private _nextObjectInstance: MergedObject | null = null;
+
     private _saved: MergedData[] | null = null;
+    private debouncedSave: () => void;
+
+    private throttledSave: () => void;
+    private saveCounter: number = 0;
+
 
     onLoad() {
         input.on(Input.EventType.TOUCH_START, this.onTouchStart, this);
         input.on(Input.EventType.TOUCH_END, this.onTouchEnd, this);
         input.on(Input.EventType.TOUCH_MOVE, this.onTouchMove, this);
-        eventBus.on(GAME_EVENTS.MERGE.OBJECT_CREATED, this.onObjectCreated, this);
+
+        eventBus.on(GAME_EVENTS.MERGE.EXECUTE, this.onSaved, this);
+        eventBus.on(GAME_EVENTS.MERGE.COLLISION, this.onSaved, this);
+
+        this.debouncedSave = createCocosDebounce(() => {
+            this.saveAllObjects();
+        }, SAVE_DEBOUNCE_DELAY, this);
+
+        this.throttledSave = createCocosThrottle(() => {
+            this.saveCounter++;
+            this.saveAllObjects();
+        }, SAVE_THROTTLE_INTERVAL, this);
     }
 
     start() {
@@ -62,9 +117,6 @@ export class MouseHandler extends Component {
             logger.debug('[MouseHandler]', 'No saved objects found, creating new ones');
             this.createNewGameObjects();
         }
-
-        this.handHandler.node.setPosition(clamp(this._pos.x, -320, 320), 440, 0);
-
     }
 
     onDestroy() {
@@ -87,7 +139,7 @@ export class MouseHandler extends Component {
 
     public saveAllObjects() {
         // Получаем только активные объекты из пула
-        const activeNodes = this._poolManager?.getAllActiveNodes('merged') || [];
+        const activeNodes = this._poolManager?.getAllActiveNodes(POOL_KEYS.MERGED) || [];
 
         const dataToSave = activeNodes
         .map(node => node.getComponent(MergedObject))
@@ -96,7 +148,10 @@ export class MouseHandler extends Component {
         .filter(data => data !== null);
 
         const savedData: SavedData = {
-            Score: { score: randomInRange(0, 100), maxScore: randomInRange(100, 1000) },
+            Score: {
+                score: randomInRange(0, 100),
+                maxScore: randomInRange(100, 1000)
+            },
             MergedData: dataToSave
         };
         Bootstrap.getInstance().setSavedData(savedData);
@@ -104,7 +159,7 @@ export class MouseHandler extends Component {
         logger.debug('[MouseHandler]', `Saved ${ dataToSave.length } objects to localStorage`);
 
         // Выводим информацию о пуле для отладки
-        const poolInfo = this._poolManager?.getPoolInfo('merged');
+        const poolInfo = this._poolManager?.getPoolInfo(POOL_KEYS.MERGED);
         if (poolInfo) {
             logger.debug('[MouseHandler]', `Pool info: ${ poolInfo.active }/${ poolInfo.total } active objects`);
         }
@@ -115,8 +170,9 @@ export class MouseHandler extends Component {
         this._poolManager?.logAllPools();
     }
 
-    private onObjectCreated() {
-        this.saveAllObjects();
+    private onSaved() {
+        //this.debouncedSave();
+        this.throttledSave();
     }
 
     private startCooldown() {
@@ -133,7 +189,7 @@ export class MouseHandler extends Component {
         if (this._canDrop) {
             this.drop();
         } else {
-            logger.debug('[MouseHandler]', `Cannot drop yet. Cooldown remaining: ${ this._currentCooldown.toFixed(1) }s`);
+            logger.debug('[MouseHandler]', `Cannot drop yet. Cooldown remaining: ${ this._currentCooldown.toFixed(COOLDOWN.DISPLAY_PRECISION) }s`);
         }
     }
 
@@ -142,12 +198,13 @@ export class MouseHandler extends Component {
         const canvasPos = convertWorldToCanvasPos(this.canvas, worldPos);
         this._pos = canvasPos;
 
-        const clampPos = clamp(this._pos.x, -320, 320);
+        const clampPos = clamp(this._pos.x, HANDLER_POSITION.X_MIN, HANDLER_POSITION.X_MAX);
 
-        this.handHandler.node.setPosition(clampPos, 440, 0);
+        this.handHandler.node.setPosition(clampPos, HANDLER_POSITION.Y, HANDLER_POSITION.Z);
 
-        if (this._currentMergedObject) {
-            this._currentMergedObject.node.setPosition(clampPos, 440, 0);
+        // Обновляем позицию текущего объекта если он есть
+        if (this._currentObjectInstance) {
+            this._currentObjectInstance.node.setPosition(clampPos, HANDLER_POSITION.Y, HANDLER_POSITION.Z);
         }
     }
 
@@ -160,77 +217,141 @@ export class MouseHandler extends Component {
     // ============= МЕТОДЫ ДЛЯ СОХРАНЕНИЯ/ВОССТАНОВЛЕНИЯ =============
 
     private drop() {
-        if (this._currentMergedObject) {
-            this._currentMergedObject.enabledPhysics(true);
-            this._currentMergedObject.resetIsCurrentAndIsNext();
+        // Делаем текущий объект физическим
+        if (this._currentObjectInstance) {
+            this._currentObjectInstance.enabledPhysics(true);
+            this._currentObjectInstance.resetIsCurrentAndIsNext();
+
+            // Обновляем данные текущего объекта
+            if (this._currentObjectData) {
+                this._currentObjectData.isCurrent = false;
+                this._currentObjectData.isNext = false;
+            }
         }
 
-        this._currentMergedObject = this._nextMergedObject;
-        this._currentMergedObject.setIsCurrent();
+        // Переносим следующий объект в текущий
+        this._currentObjectData = this._nextObjectData;
+        this._currentObjectInstance = this._nextObjectInstance;
 
-        this._nextMergedObject = this.spawnMergedObject(false, true);
+        if (this._currentObjectData) {
+            this._currentObjectData.isCurrent = true;
+            this._currentObjectData.isNext = false;
+        }
 
-        if (this._currentMergedObject) {
+        if (this._currentObjectInstance) {
+            this._currentObjectInstance.setIsCurrent();
+        }
+
+        // Создаем новый следующий объект
+        const { data, instance } = this.createObjectData(false, true);
+        this._nextObjectData = data;
+        this._nextObjectInstance = instance;
+
+        // Позиционируем текущий объект
+        if (this._currentObjectInstance) {
             const handPos = this.handHandler.node.getPosition();
-            this._currentMergedObject.node.setPosition(handPos.x, handPos.y, 0);
-            this._currentMergedObject.node.active = true;
+            this._currentObjectInstance.node.setPosition(handPos.x, handPos.y, HANDLER_POSITION.Z);
+            this._currentObjectInstance.node.active = true;
+
+            // Обновляем позицию в данных
+            if (this._currentObjectData) {
+                this._currentObjectData.position = { x: handPos.x, y: handPos.y };
+            }
         }
 
-        if (this._nextMergedObject) {
-            this._nextMergedObject.node.setPosition(265, 570, 0);
-            this._nextMergedObject.node.active = true;
+        // Позиционируем следующий объект
+        if (this._nextObjectInstance) {
+            this._nextObjectInstance.node.setPosition(
+                NEXT_OBJECT_POSITION.X,
+                NEXT_OBJECT_POSITION.Y,
+                NEXT_OBJECT_POSITION.Z
+            );
+            this._nextObjectInstance.node.active = true;
+
+            // Обновляем позицию в данных
+            if (this._nextObjectData) {
+                this._nextObjectData.position = {
+                    x: NEXT_OBJECT_POSITION.X,
+                    y: NEXT_OBJECT_POSITION.Y,
+                };
+            }
         }
 
         this.startCooldown();
-
-        // Сохраняем состояние после дропа
-        this.saveAllObjects();
     }
 
-    private spawnMergedObject(isCurrent: boolean, isNext: boolean): MergedObject {
+    private createObjectData(isCurrent: boolean, isNext: boolean): { data: MergedData, instance: MergedObject } {
         const handPos = this.handHandler.node.getPosition();
 
-        const node = this._poolManager.spawn('merged', new Vec3(handPos.x, handPos.y, 0));
+        const node = this._poolManager.spawn(
+            POOL_KEYS.MERGED,
+            new Vec3(handPos.x, handPos.y, HANDLER_POSITION.Z)
+        );
 
         if (!node) {
             logger.error('[MouseHandler]', 'Failed to spawn merged object');
-            return;
+            return null;
         }
 
         const mergedObj = node.getComponent(MergedObject);
-        if (mergedObj) {
-            const rndColor = getRandomEnumKey(MergedColor);
-            const data = MergedData.fromVec3(
-                node.uuid,
-                isCurrent,
-                isNext,
-                1,
-                MergedColor[rndColor],
-                new Vec3(handPos.x, handPos.y, 0)
-            );
-
-            logger.debug('[MOUSE HANDLER]', `${ rndColor }:${ MergedColor[rndColor] }`);
-
-            mergedObj.setData(data);
-            mergedObj.enabledPhysics(false);
+        if (!mergedObj) {
+            logger.error('[MouseHandler]', 'MergedObject component not found');
+            return null;
         }
 
-        return mergedObj;
+        const rndColor = getRandomEnumKey(MergedColor);
+        const data = MergedData.fromVec3(
+            node.uuid,
+            isCurrent,
+            isNext,
+            DEFAULT_LEVEL,
+            MergedColor[rndColor],
+            new Vec3(handPos.x, handPos.y, HANDLER_POSITION.Z)
+        );
+
+        logger.debug('[MOUSE HANDLER]', `${ rndColor }:${ MergedColor[rndColor] }`);
+
+        mergedObj.setData(data);
+        mergedObj.enabledPhysics(false);
+
+        return { data, instance: mergedObj };
     }
 
     private clearAllMergedObjects() {
         // Деспавним все объекты через пул
-        this._poolManager?.despawnAll('merged');
+        this._poolManager?.despawnAll(POOL_KEYS.MERGED);
+
+        // Очищаем кэш
+        this._currentObjectInstance = null;
+        this._nextObjectInstance = null;
+        this._currentObjectData = null;
+        this._nextObjectData = null;
 
         logger.debug('[MouseHandler]', 'Cleared all merged objects from scene');
     }
 
     private createNewGameObjects() {
-        this._currentMergedObject = this.spawnMergedObject(true, false);
-        this._nextMergedObject = this.spawnMergedObject(false, true);
+        const current = this.createObjectData(true, false);
+        this._currentObjectData = current.data;
+        this._currentObjectInstance = current.instance;
 
-        if (this._nextMergedObject) {
-            this._nextMergedObject.node.setPosition(265, 570, 0);
+        const next = this.createObjectData(false, true);
+        this._nextObjectData = next.data;
+        this._nextObjectInstance = next.instance;
+
+        if (this._nextObjectInstance) {
+            this._nextObjectInstance.node.setPosition(
+                NEXT_OBJECT_POSITION.X,
+                NEXT_OBJECT_POSITION.Y,
+                NEXT_OBJECT_POSITION.Z
+            );
+
+            if (this._nextObjectData) {
+                this._nextObjectData.position = {
+                    x: NEXT_OBJECT_POSITION.X,
+                    y: NEXT_OBJECT_POSITION.Y,
+                };
+            }
         }
 
         // Сохраняем начальное состояние
@@ -247,38 +368,54 @@ export class MouseHandler extends Component {
 
         // Восстанавливаем текущий объект
         if (currentObjects.length > 0) {
-            const currentData = currentObjects[0];
-            this._currentMergedObject = this.createObjectFromData(currentData);
+            this._currentObjectData = currentObjects[0];
+            this._currentObjectInstance = this.createObjectFromData(this._currentObjectData);
 
-            if (this._currentMergedObject) {
-                this._currentMergedObject.enabledPhysics(false);
+            if (this._currentObjectInstance) {
+                this._currentObjectInstance.enabledPhysics(false);
 
                 // Устанавливаем позицию handHandler
-                this.handHandler.node.setPosition(currentData.position.x, currentData.position.y, 0);
+                this.handHandler.node.setPosition(
+                    this._currentObjectData.position.x,
+                    this._currentObjectData.position.y,
+                );
 
-                logger.debug('[MouseHandler]', `Restored current object: color=${ currentData.color }, pos=(${ currentData.position.x }, ${ currentData.position.y })`);
+                logger.debug('[MouseHandler]', `Restored current object: color=${ this._currentObjectData.color }, pos=(${ this._currentObjectData.position.x }, ${ this._currentObjectData.position.y })`);
             }
         } else {
             logger.warn('[MouseHandler]', 'No current object found in save');
-            this._currentMergedObject = this.spawnMergedObject(true, false);
+            const current = this.createObjectData(true, false);
+            this._currentObjectData = current.data;
+            this._currentObjectInstance = current.instance;
         }
 
         // Восстанавливаем следующий объект
         if (nextObjects.length > 0) {
-            const nextData = nextObjects[0];
-            this._nextMergedObject = this.createObjectFromData(nextData);
+            this._nextObjectData = nextObjects[0];
+            this._nextObjectInstance = this.createObjectFromData(this._nextObjectData);
 
-            if (this._nextMergedObject) {
-                this._nextMergedObject.enabledPhysics(false);
-                this._nextMergedObject.node.setPosition(265, 570, 0);
+            if (this._nextObjectInstance) {
+                this._nextObjectInstance.enabledPhysics(false);
+                this._nextObjectInstance.node.setPosition(
+                    NEXT_OBJECT_POSITION.X,
+                    NEXT_OBJECT_POSITION.Y,
+                    NEXT_OBJECT_POSITION.Z
+                );
 
-                logger.debug('[MouseHandler]', `Restored next object: color=${ nextData.color }, level=${ nextData.level }`);
+                logger.debug('[MouseHandler]', `Restored next object: color=${ this._nextObjectData.color }, level=${ this._nextObjectData.level }`);
             }
         } else {
             logger.warn('[MouseHandler]', 'No next object found in save');
-            this._nextMergedObject = this.spawnMergedObject(false, true);
-            if (this._nextMergedObject) {
-                this._nextMergedObject.node.setPosition(265, 570, 0);
+            const next = this.createObjectData(false, true);
+            this._nextObjectData = next.data;
+            this._nextObjectInstance = next.instance;
+
+            if (this._nextObjectInstance) {
+                this._nextObjectInstance.node.setPosition(
+                    NEXT_OBJECT_POSITION.X,
+                    NEXT_OBJECT_POSITION.Y,
+                    NEXT_OBJECT_POSITION.Z
+                );
             }
         }
 
@@ -298,8 +435,8 @@ export class MouseHandler extends Component {
 
     private createObjectFromData(data: MergedData): MergedObject | null {
         // Создаем Vec3 из position
-        const position = new Vec3(data.position.x, data.position.y, 0);
-        const node = this._poolManager?.spawn('merged', position);
+        const position = new Vec3(data.position.x, data.position.y, HANDLER_POSITION.Z);
+        const node = this._poolManager?.spawn(POOL_KEYS.MERGED, position);
 
         if (!node) {
             logger.error('[MouseHandler]', `Failed to spawn object at (${ data.position.x }, ${ data.position.y })`);
@@ -314,12 +451,12 @@ export class MouseHandler extends Component {
             return mergedObj;
         } else {
             logger.error('[MouseHandler]', 'MergedObject component not found on spawned node');
-            this._poolManager?.despawn('merged', node);
+            this._poolManager?.despawn(POOL_KEYS.MERGED, node);
             return null;
         }
     }
 
     private getActiveObjectsCount(): number {
-        return this._poolManager?.getAllActiveNodes('merged')?.length || 0;
+        return this._poolManager?.getAllActiveNodes(POOL_KEYS.MERGED)?.length || 0;
     }
 }

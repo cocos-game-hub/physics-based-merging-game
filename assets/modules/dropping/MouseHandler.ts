@@ -1,4 +1,4 @@
-import { _decorator, Camera, Canvas, Component, EventTouch, Input, input, Sprite, Vec2, Vec3 } from 'cc';
+import { _decorator, Button, Camera, Canvas, Component, EventTouch, Input, input, Sprite, Vec2, Vec3 } from 'cc';
 import logger from 'db://assets/core/utils/console';
 import { PoolManager } from "db://assets/core/pool/PoolManager";
 import { MergedObject } from "db://assets/modules/merged/view/MergedObject";
@@ -9,13 +9,11 @@ import {
     convertWorldToCanvasPos,
     createCocosDebounce,
     createCocosThrottle,
-    getRandomEnumKey,
-    randomInRange
+    getRandomEnumKey
 } from "db://assets/core/utils";
 import { SERVICE_KEYS } from "db://assets/core/di/types";
 import { container } from "db://assets/core/di/Container";
 import { Bootstrap } from "db://assets/core/Bootstrap";
-import { SavedData } from "db://assets/core/api/yandex-game/feature/player/player";
 import { eventBus } from "db://assets/core/event-bus/EventBus";
 import { GAME_EVENTS } from "db://assets/core/event-bus/GameEvents";
 
@@ -30,8 +28,8 @@ const HANDLER_POSITION = {
 } as const;
 
 const NEXT_OBJECT_POSITION = {
-    X: 265,
-    Y: 570,
+    X: 0,
+    Y: 565,
     Z: 0
 } as const;
 
@@ -56,6 +54,7 @@ export class MouseHandler extends Component {
     @property(Sprite) declare handHandler: Sprite | null;
     @property(Canvas) declare canvas: Canvas | null;
     @property(Camera) declare gameCamera: Camera | null;
+    @property(Button) declare swapBtn: Button | null;
     private _pos: Vec2 = new Vec2(0, 0);
 
     // Cooldown timer
@@ -86,6 +85,9 @@ export class MouseHandler extends Component {
 
         eventBus.on(GAME_EVENTS.MERGE.EXECUTE, this.onSaved, this);
         eventBus.on(GAME_EVENTS.MERGE.COLLISION, this.onSaved, this);
+        eventBus.on(GAME_EVENTS.GAMEPLAY.RESET, this.clear, this);
+
+        this.swapBtn.node.on(Button.EventType.CLICK, this.onSwap, this);
 
         this.debouncedSave = createCocosDebounce(() => {
             this.saveAllObjects();
@@ -98,7 +100,7 @@ export class MouseHandler extends Component {
     }
 
     start() {
-        this._saved = Bootstrap.getInstance().getSavedData().MergedData;
+        this._saved = Bootstrap.getInstance().savedData.MergedData;
 
         this._poolManager = container.get<PoolManager>(SERVICE_KEYS.POOL_MANAGER);
 
@@ -147,14 +149,7 @@ export class MouseHandler extends Component {
         .map(obj => obj.getData())
         .filter(data => data !== null);
 
-        const savedData: SavedData = {
-            Score: {
-                score: randomInRange(0, 100),
-                maxScore: randomInRange(100, 1000)
-            },
-            MergedData: dataToSave
-        };
-        Bootstrap.getInstance().setSavedData(savedData);
+        Bootstrap.getInstance().updateSavedData('MergedData', dataToSave);
 
         logger.debug('[MouseHandler]', `Saved ${ dataToSave.length } objects to localStorage`);
 
@@ -168,6 +163,64 @@ export class MouseHandler extends Component {
     //TODO: Для отладки
     public logPoolState() {
         this._poolManager?.logAllPools();
+    }
+
+    private onSwap() {
+        if (!this._currentObjectData || !this._nextObjectData ||
+            !this._currentObjectInstance || !this._nextObjectInstance) {
+            logger.warn('[MouseHandler]', 'Cannot swap: missing objects');
+            return;
+        }
+
+        const tempData = this._currentObjectData;
+        const tempInstance = this._currentObjectInstance;
+
+        this._currentObjectData = this._nextObjectData;
+        this._currentObjectInstance = this._nextObjectInstance;
+
+        this._nextObjectData = tempData;
+        this._nextObjectInstance = tempInstance;
+
+        this._currentObjectData.isCurrent = true;
+        this._currentObjectData.isNext = false;
+
+        this._nextObjectData.isCurrent = false;
+        this._nextObjectData.isNext = true;
+
+        if (this._currentObjectInstance) {
+            this._currentObjectInstance.setIsCurrent();
+            this._currentObjectInstance.enabledPhysics(false);
+
+            const handPos = this.handHandler.node.getPosition();
+            this._currentObjectInstance.node.setPosition(handPos.x, handPos.y, HANDLER_POSITION.Z);
+            this._currentObjectData.position = { x: handPos.x, y: handPos.y };
+        }
+
+        if (this._nextObjectInstance) {
+            this._nextObjectInstance.resetIsCurrentAndIsNext();
+            this._nextObjectInstance.enabledPhysics(false);
+
+            this._nextObjectInstance.node.setPosition(
+                NEXT_OBJECT_POSITION.X,
+                NEXT_OBJECT_POSITION.Y,
+            );
+            this._nextObjectData.position = {
+                x: NEXT_OBJECT_POSITION.X,
+                y: NEXT_OBJECT_POSITION.Y
+            };
+        }
+
+        this.throttledSave();
+
+        logger.debug('[MouseHandler]', 'Objects swapped successfully', {
+            current: this._currentObjectData,
+            next: this._nextObjectData
+        });
+    }
+
+    private clear() {
+        this.clearAllMergedObjects();
+        this.createNewGameObjects();
     }
 
     private onSaved() {

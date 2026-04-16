@@ -92,10 +92,10 @@ class YandexSdk {
             logger.info('YandexSdk: SDK получен');
 
             // Создание модулей
-            //@ts-ignore
             this._modules = Object.entries(moduleDefinitions).reduce(
                 (acc, [key, ModuleClass]) => {
                     logger.info(`YandexSdk: создание модуля ${ key }`);
+                    //@ts-ignore
                     acc[key as keyof Modules] = new ModuleClass(this._initialization, this._ysdk);
                     return acc;
                 },
@@ -103,7 +103,6 @@ class YandexSdk {
             );
 
             // Вызов init у модулей, если метод существует
-            //@ts-ignore
             for (const [key, module] of Object.entries(this._modules)) {
                 if (module && typeof (module as any).init === 'function') {
                     logger.info(`YandexSdk: вызов init() у модуля ${ key }`);

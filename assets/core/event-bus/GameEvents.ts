@@ -6,6 +6,9 @@ export const GAME_EVENTS = {
         COLLISION: 'merge:collision',
         EXECUTE: 'merge:execute',
         OBJECT_CREATED: 'merge:objectCreated',
+    },
+    GAMEPLAY: {
+        RESET: 'gameplay:reset',
     }
 };
 

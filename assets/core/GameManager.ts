@@ -7,6 +7,8 @@ import { PoolManager } from "db://assets/core/pool/PoolManager";
 import { yandexSdk } from "db://assets/core/api/yandex-game";
 import { DEV } from 'cc/env';
 import { Bootstrap } from "db://assets/core/Bootstrap";
+import { eventBus } from "db://assets/core/event-bus/EventBus";
+import { GAME_EVENTS } from "db://assets/core/event-bus/GameEvents";
 
 const { ccclass, property } = _decorator;
 
@@ -19,6 +21,7 @@ export class GameManager extends Component {
         if (!DEV) {
             yandexSdk.gameEvents.gameReady();
         }
+
         this.resetButton.node.on(Button.EventType.CLICK, this.resetProgress, this);
         PhysicsSystem2D.instance.debugDrawFlags = 0;
         logger.setDevMode(false);
@@ -39,6 +42,7 @@ export class GameManager extends Component {
     }
 
     resetProgress() {
+        eventBus.emit(GAME_EVENTS.GAMEPLAY.RESET);
         Bootstrap.getInstance().removeSavedData();
     }
 }

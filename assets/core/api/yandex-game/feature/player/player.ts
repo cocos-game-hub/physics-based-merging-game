@@ -4,7 +4,8 @@ import type { Player as P } from 'ysdk';
 
 const savedDataDefinitions = {
     MergedData: 'MergedData',
-    Score: 'Score',
+    MaxScore: 'MaxScore',
+    CurScore: 'CurScore',
 } as const;
 
 type SavedDataDefinitions = typeof savedDataDefinitions;
@@ -12,7 +13,8 @@ export type SavedDataKey = keyof SavedDataDefinitions;
 
 export interface SavedDataTypes {
     MergedData: MergedData[];
-    Score: { score: number; maxScore: number };
+    MaxScore: number;
+    CurScore: number;
 }
 
 export type SavedData = {
@@ -52,14 +54,33 @@ class Player extends Module {
         }, 'getData');
     }
 
+    /**
+     * Частичное обновление данных по одному ключу
+     * @param key - Ключ данных для обновления
+     * @param value - Новое значение
+     * @param flush - Немедленная отправка на сервер
+     */
+    async updateData<K extends SavedDataKey>(
+        key: K,
+        value: SavedDataTypes[K],
+        flush: boolean = false
+    ): Promise<void> {
+        return this.safeAsyncCall(async () => {
+            if (!this.player) {
+                throw new Error('Player not initialized. Call init() first.');
+            }
+            await this.player.setData({ [key]: value } as any, flush);
+        }, 'updateData');
+    }
+
     getPlayerInfo() {
         if (!this.player) return null;
 
         return this.safeCall(() => ({
-            id: this.player.getUniqueID?.(),
-            name: this.player.getName?.(),
-            photo: this.player.getPhoto?.('large'),
-            mode: this.player.getMode?.()
+            id: this.player?.getUniqueID?.(),
+            name: this.player?.getName?.(),
+            photo: this.player?.getPhoto?.('large'),
+            mode: this.player?.getMode?.()
         }), 'getPlayerInfo');
     }
 

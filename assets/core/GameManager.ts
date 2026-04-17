@@ -41,8 +41,8 @@ export class GameManager extends Component {
         }
     }
 
-    resetProgress() {
+    async resetProgress() {
         eventBus.emit(GAME_EVENTS.GAMEPLAY.RESET);
-        Bootstrap.getInstance().removeSavedData();
+        await Bootstrap.getInstance().removeSavedData();
     }
 }

@@ -60,7 +60,8 @@ class Player extends Module {
      * @param value - Новое значение
      * @param flush - Немедленная отправка на сервер
      */
-    async updateData<K extends SavedDataKey>(
+
+    /*async updateData<K extends SavedDataKey>(
         key: K,
         value: SavedDataTypes[K],
         flush: boolean = false
@@ -70,6 +71,39 @@ class Player extends Module {
                 throw new Error('Player not initialized. Call init() first.');
             }
             await this.player.setData({ [key]: value } as any, flush);
+        }, 'updateData');
+    }*/
+
+    /**
+     * Частичное обновление данных по одному ключу или массиву ключей
+     * @param keyOrData - Ключ данных для обновления или объект с данными
+     * @param value - Новое значение (если первый параметр - ключ)
+     * @param flush - Немедленная отправка на сервер
+     */
+    async updateData<K extends SavedDataKey>(
+        keyOrData: K | Partial<SavedData>,
+        value?: SavedDataTypes[K],
+        flush: boolean = false
+    ): Promise<void> {
+        return this.safeAsyncCall(async () => {
+            if (!this.player) {
+                throw new Error('Player not initialized. Call init() first.');
+            }
+
+            let updateObject: Partial<SavedData>;
+
+            if (typeof keyOrData === 'string') {
+                // Вызов с одним ключом: updateData('MaxScore', 100)
+                if (value === undefined) {
+                    throw new Error('Value is required when key is provided');
+                }
+                updateObject = { [keyOrData]: value } as Partial<SavedData>;
+            } else {
+                // Вызов с объектом: updateData({ MaxScore: 100, CurScore: 50 })
+                updateObject = keyOrData;
+            }
+
+            await this.player.setData(updateObject as Record<string, any>, flush);
         }, 'updateData');
     }
 

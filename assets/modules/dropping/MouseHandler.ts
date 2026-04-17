@@ -78,7 +78,7 @@ export class MouseHandler extends Component {
     private saveCounter: number = 0;
 
 
-    onLoad() {
+    async onLoad() {
         input.on(Input.EventType.TOUCH_START, this.onTouchStart, this);
         input.on(Input.EventType.TOUCH_END, this.onTouchEnd, this);
         input.on(Input.EventType.TOUCH_MOVE, this.onTouchMove, this);
@@ -99,7 +99,7 @@ export class MouseHandler extends Component {
         }, SAVE_THROTTLE_INTERVAL, this);
     }
 
-    start() {
+    async start() {
         this._saved = Bootstrap.getInstance().savedData.MergedData;
 
         this._poolManager = container.get<PoolManager>(SERVICE_KEYS.POOL_MANAGER);
@@ -117,7 +117,7 @@ export class MouseHandler extends Component {
             this.restoreAllObjectsFromSave();
         } else {
             logger.debug('[MouseHandler]', 'No saved objects found, creating new ones');
-            this.createNewGameObjects();
+            await this.createNewGameObjects();
         }
     }
 
@@ -139,7 +139,7 @@ export class MouseHandler extends Component {
         }
     }
 
-    public saveAllObjects() {
+    public async saveAllObjects() {
         // Получаем только активные объекты из пула
         const activeNodes = this._poolManager?.getAllActiveNodes(POOL_KEYS.MERGED) || [];
 
@@ -149,7 +149,9 @@ export class MouseHandler extends Component {
         .map(obj => obj.getData())
         .filter(data => data !== null);
 
-        Bootstrap.getInstance().updateSavedData('MergedData', dataToSave);
+        await Bootstrap.getInstance().updateMultipleData({
+            MergedData: dataToSave
+        });
 
         logger.debug('[MouseHandler]', `Saved ${ dataToSave.length } objects to localStorage`);
 
@@ -218,9 +220,9 @@ export class MouseHandler extends Component {
         });
     }
 
-    private clear() {
+    private async clear() {
         this.clearAllMergedObjects();
-        this.createNewGameObjects();
+        await this.createNewGameObjects();
     }
 
     private onSaved() {
@@ -383,7 +385,7 @@ export class MouseHandler extends Component {
         logger.debug('[MouseHandler]', 'Cleared all merged objects from scene');
     }
 
-    private createNewGameObjects() {
+    private async createNewGameObjects() {
         const current = this.createObjectData(true, false);
         this._currentObjectData = current.data;
         this._currentObjectInstance = current.instance;
@@ -408,7 +410,7 @@ export class MouseHandler extends Component {
         }
 
         // Сохраняем начальное состояние
-        this.saveAllObjects();
+        await this.saveAllObjects();
     }
 
     private restoreAllObjectsFromSave() {

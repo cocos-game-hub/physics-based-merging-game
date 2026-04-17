@@ -2,6 +2,7 @@ import { _decorator, Component, Enum, RichText, Tween, tween } from 'cc';
 import { eventBus } from "db://assets/core/event-bus/EventBus";
 import { GAME_EVENTS, MergeExecuteEvent } from "db://assets/core/event-bus/GameEvents";
 import { Bootstrap } from "db://assets/core/Bootstrap";
+import { createCocosDebounce } from "db://assets/core/utils";
 
 const { ccclass, property } = _decorator;
 
@@ -9,6 +10,8 @@ export enum ZeroPosition {
     LEFT = 0,   // 00000042
     RIGHT = 1   // 42000000
 }
+
+const SAVE_DEBOUNCE_DELAY = 3.5;
 
 @ccclass('ScoreHandler')
 export class ScoreHandler extends Component {
@@ -40,15 +43,28 @@ export class ScoreHandler extends Component {
 
     private _scoreTween: Tween<{ value: number }> | null = null;
     private _maxScoreTween: Tween<{ value: number }> | null = null;
+    private debouncedSave: () => void;
+
+    async onLoad() {
+        this._maxScore = Bootstrap.getInstance().savedData.MaxScore | 0;
+        this._score = Bootstrap.getInstance().savedData.CurScore | 0;
+
+        this.debouncedSave = createCocosDebounce(() => {
+            Bootstrap.getInstance().updateMultipleDataFlush({
+                CurScore: this._score,
+                MaxScore: this._maxScore,
+            }, true);
+        }, SAVE_DEBOUNCE_DELAY, this);
+    }
 
     start() {
         eventBus.on(GAME_EVENTS.MERGE.EXECUTE, this.onMergeExecute, this);
         eventBus.on(GAME_EVENTS.GAMEPLAY.RESET, this.onReset, this);
 
-        this._maxScore = Bootstrap.getInstance().getSavedData().MaxScore | 0;
-        this._score = Bootstrap.getInstance().getSavedData().CurScore | 0;
         this.updateScoreDisplay(this._score);
         this.updateMaxScoreDisplay(this._maxScore);
+
+        this.debouncedSave();
     }
 
     public setScoreZeroPosition(position: ZeroPosition) {

@@ -23,6 +23,8 @@ export class Bootstrap extends SingletonComponent<Bootstrap> {
     async start() {
         if (DEV) {
             await yandexSdk.init();
+            let lang = yandexSdk.sdk.environment.i18n.lang;
+            logger.info("LANG:" + lang);
             logger.info('Bootstrap: DEV режим, пропускаем инициализацию SDK');
             const savedData = this.getSavedData();
             if (savedData) {

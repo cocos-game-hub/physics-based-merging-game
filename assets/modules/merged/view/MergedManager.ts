@@ -15,9 +15,14 @@ const { ccclass, property } = _decorator;
 @ccclass('MergedManager')
 export class MergedManager extends SingletonComponent<MergedManager> {
     @property(Prefab) mergedPrefab: Prefab | null = null;
-    private _poolManager: PoolManager | null = null;
     private _logic: MergedLogic | null = null;
     private _objectMap: Map<string, MergedObject> = new Map();
+
+    private _poolManager: PoolManager | null = null;
+
+    get poolManager(): PoolManager | null {
+        return this._poolManager;
+    }
 
     start() {
         logger.debug('[MergedManager]', 'start');

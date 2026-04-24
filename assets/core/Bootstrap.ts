@@ -5,6 +5,7 @@ import { SingletonComponent } from "db://assets/core/utils/SingletonComponent";
 import { yandexSdk } from "db://assets/core/api/yandex-game";
 import { SavedData, SavedDataKey, SavedDataTypes } from "db://assets/core/api/yandex-game/feature/player/player";
 import { MergedData } from "db://assets/modules/merged/data/MergedData";
+import { ISO_639_1 } from "ysdk";
 
 const { ccclass, property } = _decorator;
 const DEV = true;
@@ -13,6 +14,11 @@ const DEV = true;
 export class Bootstrap extends SingletonComponent<Bootstrap> {
     protected isPersistent: boolean = true;
     private _defaultJson = `{"MaxScore":0, "CurScore":0,"MergedData":[{"uuid":"Node.831","isCurrent":true,"isNext":false,"level":1,"color":"#D64040","position":{"x":0,"y":440}},{"uuid":"Node.837","isCurrent":false,"isNext":true,"level":1,"color":"#8840D6","position":{"x":0,"y":440}}]}`;
+    private _currentLang: ISO_639_1 = "en";
+
+    get currentLang(): ISO_639_1 {
+        return this._currentLang;
+    }
 
     private _savedData: SavedData | null = null;
 
@@ -23,8 +29,8 @@ export class Bootstrap extends SingletonComponent<Bootstrap> {
     async start() {
         if (DEV) {
             await yandexSdk.init();
-            let lang = yandexSdk.sdk.environment.i18n.lang;
-            logger.info("LANG:" + lang);
+            this._currentLang = yandexSdk.sdk.environment.i18n.lang;
+            logger.info("LANG:" + this._currentLang);
             logger.info('Bootstrap: DEV режим, пропускаем инициализацию SDK');
             const savedData = this.getSavedData();
             if (savedData) {

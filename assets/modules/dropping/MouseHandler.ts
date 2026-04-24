@@ -332,6 +332,7 @@ export class MouseHandler extends Component {
             }
         }
 
+        eventBus.emit(GAME_EVENTS.DROPPING.DROP);
         this.startCooldown();
     }
 

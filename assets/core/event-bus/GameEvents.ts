@@ -9,6 +9,9 @@ export const GAME_EVENTS = {
     },
     GAMEPLAY: {
         RESET: 'gameplay:reset',
+    },
+    DROPPING: {
+        DROP: 'dropping:drop',
     }
 };
 
